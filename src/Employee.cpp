@@ -1,12 +1,12 @@
 // Employee.cpp
 // Muc dich: Cai dat chuc nang nhan vien va doi mat khau.
 
-#include "Employee.h"
-#include "GiaoDien.h"
-#include "XuLyFile.h"
-#include "TaiKhoan.h"
-#include "NhanVien.h"
-#include "Constants.h"
+#include "../include/Employee.h"
+#include "../include/GiaoDien.h"
+#include "../include/XuLyFile.h"
+#include "../include/TaiKhoan.h"
+#include "../include/NhanVien.h"
+#include "../include/Constants.h"
 
 void Employee::hienThiMenu(const std::string& strUsername)
 {
