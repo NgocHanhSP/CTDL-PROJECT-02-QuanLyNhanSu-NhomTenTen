@@ -1,7 +1,7 @@
 // main.cpp
 // Muc dich: Diem bat dau chuong trinh; tao luong dang nhap chinh.
 
-#include "DangNhap.h"
+#include "../include/DangNhap.h"
 
 int main()
 {

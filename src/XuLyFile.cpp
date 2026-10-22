@@ -3,7 +3,7 @@
 // TODO: Thong nhat format dong trong Administrators.txt, Employees.txt va [username].txt
 // truoc khi implement cac ham ben duoi.
 
-#include "XuLyFile.h"
+#include "../include/XuLyFile.h" 
 
 bool XuLyFile::kiemTraDangNhap(const std::string& strUsername,
                                const std::string& strPassword,
