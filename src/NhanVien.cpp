@@ -1,7 +1,7 @@
 // NhanVien.cpp
 // Muc dich: Cai dat constructor, getter va setter cua lop NhanVien.
 
-#include "NhanVien.h"
+#include "../include/NhanVien.h"
 
 NhanVien::NhanVien()
     : _strHoTen(""), _strDiaChi(""), _strSoDienThoai(""), _strEmail("")

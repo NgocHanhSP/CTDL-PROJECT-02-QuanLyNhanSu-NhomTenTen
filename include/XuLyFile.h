@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "Constants.h"
-#include "TaiKhoan.h"
-#include "NhanVien.h"
+#include "../include/Constants.h"
+#include "../include/TaiKhoan.h"
+#include "../include/NhanVien.h"
 
 // XuLyFile.h
 // Muc dich: Khai bao cac thao tac doc/ghi file; cac module khac khong tu y sua file txt.
