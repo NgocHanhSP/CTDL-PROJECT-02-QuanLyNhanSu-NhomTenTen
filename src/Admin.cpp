@@ -1,12 +1,12 @@
 // Admin.cpp
 // Muc dich: Cai dat cac chuc nang quan tri nhan vien.
 
-#include "Admin.h"
-#include "GiaoDien.h"
-#include "XuLyFile.h"
-#include "TaiKhoan.h"
-#include "NhanVien.h"
-#include "Constants.h"
+#include "../include/Admin.h"
+#include "../include/GiaoDien.h"
+#include "../include/XuLyFile.h"
+#include "../include/TaiKhoan.h"
+#include "../include/NhanVien.h"
+#include "../include/Constants.h"
 
 void Admin::hienThiMenu(const std::string& strUsername)
 {

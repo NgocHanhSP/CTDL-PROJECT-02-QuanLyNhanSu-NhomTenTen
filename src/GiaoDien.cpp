@@ -2,7 +2,7 @@
 // Muc dich: Cai dat phan hien thi console va nhap mat khau.
 
 #include <iostream>
-#include "GiaoDien.h"
+#include "../include/GiaoDien.h"
 
 void GiaoDien::hienThiMenuDangNhap()
 {

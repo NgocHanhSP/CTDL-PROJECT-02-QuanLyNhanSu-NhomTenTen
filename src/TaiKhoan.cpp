@@ -1,7 +1,7 @@
 // TaiKhoan.cpp
 // Muc dich: Cai dat constructor, getter va setter cua lop TaiKhoan.
 
-#include "TaiKhoan.h"
+#include "../include/TaiKhoan.h"
 
 TaiKhoan::TaiKhoan()
     : _strUsername(""), _strPassword("")

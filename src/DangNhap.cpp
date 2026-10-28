@@ -1,11 +1,11 @@
 // DangNhap.cpp
 // Muc dich: Cai dat luong dang nhap, gioi han so lan sai va dieu huong theo vai tro.
 
-#include "DangNhap.h"
-#include "Admin.h"
-#include "Employee.h"
-#include "GiaoDien.h"
-#include "XuLyFile.h"
+#include "../include/DangNhap.h"
+#include "../include/Admin.h"
+#include "../include/Employee.h"
+#include "../include/GiaoDien.h"
+#include "../include/XuLyFile.h"
 
 void DangNhap::chayDangNhap()
 {
