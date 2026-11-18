@@ -1,302 +1,529 @@
-// XuLyFile.cpp
-// Muc dich: Noi duy nhat xu ly doc/ghi cac file du lieu.
-// TODO: Thong nhat format dong trong Administrators.txt, Employees.txt va [username].txt
-// truoc khi implement cac ham ben duoi.
-
 #include "../include/XuLyFile.h"
-
+#include <cerrno>
 #include <cstdio>
 #include <fstream>
+#include <sstream>
+#include <string>
 
-bool XuLyFile::kiemTraDangNhap(const std::string& strUsername,
-                               const std::string& strPassword,
-                               VaiTro eVaiTro)
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+#include "../include/ChuoiUtf8.h"
+#include "../include/DanhSachLienKet.h"
+#include "../include/KiemTraDuLieu.h"
+#include "../include/HoSoNhanVien.h"
+#include "../include/TaiKhoan.h"
+
+namespace
 {
-    /*TODO: Not Implemented includ- doc file theo vai tro va so sanh thong tin.
-    (void)strUsername;
-    (void)strPassword;
-    (void)eVaiTro;
-    return false;*/
-
-    // Doc file theo vai tro va so sanh thong tin.
-    std::string strDuongDan = (eVaiTro == VaiTro::ADMIN) ? ADMIN_FILE_PATH : EMPLOYEE_FILE_PATH;
-    std::ifstream fileDoc(strDuongDan);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
-
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        if (strUserDoc == strUsername && strPassDoc == strPassword)
-        {
-            return true;
-        }
-    }
-    return false;
+	const char BLANK_CHARACTERS[] = " \t\r\n";
 }
 
-bool XuLyFile::kiemTraUsernameTonTai(const std::string& strUsername)
+#ifndef _WIN32
+namespace
 {
-    /*TODO: Not Implemented - chi tim trong Employees.txt.
-    (void)strUsername;
-    return false;*/
+	const int DIRECTORY_MODE = 0755;
+}
+#endif
 
-    // Chi tim trong Employees.txt.
-    std::ifstream fileDoc(EMPLOYEE_FILE_PATH);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+/**********************************************************
+* @Description Tao thu muc luu du lieu
+*
+* @return true neu tao thanh cong hoac thu muc da ton tai, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::taoThuMucDuLieu() const
+{
+#ifdef _WIN32
+	const int iKetQua = _mkdir(DATA_DIRECTORY_NAME);
+#else
+	const int iKetQua = mkdir(DATA_DIRECTORY_NAME, DIRECTORY_MODE);
+#endif
 
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        if (strUserDoc == strUsername)
-        {
-            return true;
-        }
-    }
-    return false;
+	return (iKetQua == 0) || (errno == EEXIST);
 }
 
-bool XuLyFile::docTaiKhoan(const std::string& strUsername, TaiKhoan& taiKhoan)
+/**********************************************************
+* @Description Kiem tra username/password theo vai tro
+*
+* @return true neu co tai khoan khop, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::kiemTraDangNhap(const std::string& strUsername, const std::string& strPassword,
+							   const VaiTro eVaiTro) const
 {
-    /*TODO: Not Implemented - nap username va password vao taiKhoan.
-    (void)strUsername;
-    (void)taiKhoan;
-    return false;*/
+	DanhSachLienKet<TaiKhoan> danhSach;
 
-    // Nap username va password vao taiKhoan.
-    std::ifstream fileDoc(EMPLOYEE_FILE_PATH);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+	if (!this->docFileTaiKhoan(this->layDuongDanTaiKhoan(eVaiTro), danhSach))
+	{
+		return false;
+	}
 
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        if (strUserDoc == strUsername)
-        {
-            taiKhoan.setUsername(strUserDoc);
-            taiKhoan.setPassword(strPassDoc);
-            return true;
-        }
-    }
-    return false;
+	return danhSach.timDauTien([&](const TaiKhoan& taiKhoan)
+	{
+		return taiKhoan.getUsername() == strUsername && taiKhoan.getPassword() == strPassword;
+	}) != nullptr;
 }
 
-bool XuLyFile::themTaiKhoan(const TaiKhoan& taiKhoan)
+/**********************************************************
+* @Description Kiem tra Employee da ton tai theo username
+*
+* @return true neu ton tai, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::kiemTraUsernameTonTai(const std::string& strUsername) const
 {
-    /**TODO: Not Implemented - them tai khoan vao Employees.txt.
-    (void)taiKhoan;
-    return false;**/
+	TaiKhoan taiKhoan;
 
-    // Them tai khoan vao Employees.txt (tu choi neu trung username).
-    if (kiemTraUsernameTonTai(taiKhoan.getUsername()))
-    {
-        return false;
-    }
-
-    std::ofstream fileGhi(EMPLOYEE_FILE_PATH, std::ios::app);
-    if (!fileGhi.is_open())
-    {
-        return false;
-    }
-    fileGhi << taiKhoan.getUsername() << " " << taiKhoan.getPassword() << "\n";
-    return true;
+	return this->docTaiKhoan(strUsername, taiKhoan);
 }
 
-bool XuLyFile::xoaTaiKhoan(const std::string& strUsername)
+/**********************************************************
+* @Description Kiem tra username da bi trung (khong phan biet hoa thuong)
+*
+* @return true neu trung, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::kiemTraUsernameTrung(const std::string& strUsername) const
 {
-    /**TODO: Not Implemented - cap nhat Employees.txt va xu ly file ho so.
-    (void)strUsername;
-    return false;**/
+	DanhSachLienKet<TaiKhoan> danhSach;
 
-    // Cap nhat Employees.txt va xoa file ho so.
-    std::ifstream fileDoc(EMPLOYEE_FILE_PATH);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+	if (!this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
 
-    std::vector<TaiKhoan> danhSachTaiKhoan;
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    bool bTimThay = false;
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        if (strUserDoc == strUsername)
-        {
-            bTimThay = true;
-        }
-        else
-        {
-            danhSachTaiKhoan.push_back(TaiKhoan(strUserDoc, strPassDoc));
-        }
-    }
-    fileDoc.close();
+	const std::string strChuan = ChuoiUtf8::chuyenThanhChuThuong(strUsername);
 
-    if (!bTimThay)
-    {
-        return false;
-    }
-
-    std::ofstream fileGhi(EMPLOYEE_FILE_PATH, std::ios::trunc);
-    if (!fileGhi.is_open())
-    {
-        return false;
-    }
-    for (const TaiKhoan& taiKhoanHienTai : danhSachTaiKhoan)
-    {
-        fileGhi << taiKhoanHienTai.getUsername() << " "
-                << taiKhoanHienTai.getPassword() << "\n";
-    }
-    fileGhi.close();
-
-    std::remove((DATA_DIRECTORY + strUsername + ".txt").c_str());
-    return true;
+	return danhSach.timDauTien([&](const TaiKhoan& taiKhoan)
+	{
+		return ChuoiUtf8::chuyenThanhChuThuong(taiKhoan.getUsername()) == strChuan;
+	}) != nullptr;
 }
 
+/**********************************************************
+* @Description Kiem tra so dien thoai da thuoc Employee khac
+*
+* @return true neu trung, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::kiemTraTrungSoDienThoai(const std::string& strSoDienThoai, const std::string& strUsernameBoQua) const
+{
+	return this->kiemTraTrungThongTin(strSoDienThoai, strUsernameBoQua, TruongThongTin::SO_DIEN_THOAI);
+}
+
+/**********************************************************
+* @Description Kiem tra email da thuoc Employee khac
+*
+* @return true neu trung, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::kiemTraTrungEmail(const std::string& strEmail, const std::string& strUsernameBoQua) const
+{
+	return this->kiemTraTrungThongTin(strEmail, strUsernameBoQua, TruongThongTin::EMAIL);
+}
+
+/**********************************************************
+* @Description Doc tai khoan Employee theo username
+*
+* @return true neu tim thay, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::docTaiKhoan(const std::string& strUsername, TaiKhoan& taiKhoan) const
+{
+	DanhSachLienKet<TaiKhoan> danhSach;
+
+	if (!this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
+
+	const TaiKhoan* pTaiKhoan = danhSach.timDauTien([&](const TaiKhoan& taiKhoanDuyet)
+	{
+		return taiKhoanDuyet.getUsername() == strUsername;
+	});
+
+	if (pTaiKhoan == nullptr)
+	{
+		return false;
+	}
+
+	taiKhoan = *pTaiKhoan;
+	return true;
+}
+
+/**********************************************************
+* @Description Doc danh sach tat ca tai khoan Employee
+*
+* @return true neu doc duoc file, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::docDanhSachTaiKhoan(DanhSachLienKet<TaiKhoan>& danhSach) const
+{
+	return this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach);
+}
+
+/**********************************************************
+* @Description Them tai khoan Employee moi vao file
+*
+* @return true neu them thanh cong, false neu nguoc lai
+* @attention Chua co file tai khoan thi tao moi; file ton tai nhung doc loi thi khong ghi de
+**********************************************************/
+bool XuLyFile::themTaiKhoan(const TaiKhoan& taiKhoan) const
+{
+	const std::string strUsername = taiKhoan.getUsername();
+	std::string strDuongDanHoSo;
+
+	if (!this->layDuongDanHoSo(strUsername, strDuongDanHoSo) ||
+		this->kiemTraUsernameTrung(strUsername))
+	{
+		return false;
+	}
+
+	const bool bFileTonTai = std::ifstream(EMPLOYEE_FILE_PATH).is_open();
+	DanhSachLienKet<TaiKhoan> danhSach;
+
+	if (bFileTonTai && !this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
+
+	danhSach.themCuoi(taiKhoan);
+
+	return this->ghiFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach);
+}
+
+/**********************************************************
+* @Description Xoa tai khoan Employee va file ho so tuong ung
+*
+* @return true neu xoa thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::xoaTaiKhoan(const std::string& strUsername) const
+{
+	DanhSachLienKet<TaiKhoan> danhSach;
+
+	if (!this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
+
+	const bool bDaXoa = danhSach.xoaDauTien([&](const TaiKhoan& taiKhoan)
+	{
+		return taiKhoan.getUsername() == strUsername;
+	});
+
+	if (!bDaXoa || !this->ghiFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
+
+	std::string strDuongDanHoSo;
+
+	if (this->layDuongDanHoSo(strUsername, strDuongDanHoSo))
+	{
+		// Ho so co the da bi mat truoc do, khong coi la loi vi tai khoan da duoc xoa.
+		static_cast<void>(std::remove(strDuongDanHoSo.c_str()));
+	}
+
+	return true;
+}
+
+/**********************************************************
+* @Description Cap nhat password cua Employee
+*
+* @return true neu cap nhat thanh cong, false neu nguoc lai
+**********************************************************/
 bool XuLyFile::capNhatMatKhau(const std::string& strUsername,
-                              const std::string& strMatKhauMoi)
+							  const std::string& strMatKhauMoi) const
 {
-    /*TODO: Not Implemented - cap nhat password trong file dung.
-    (void)strUsername;
-    (void)strMatKhauMoi;
-    return false;*/
-    // Cap nhat password trong Employees.txt.
-    std::ifstream fileDoc(EMPLOYEE_FILE_PATH);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+	DanhSachLienKet<TaiKhoan> danhSach;
 
-    std::vector<TaiKhoan> danhSachTaiKhoan;
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    bool bTimThay = false;
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        if (strUserDoc == strUsername)
-        {
-            strPassDoc = strMatKhauMoi;
-            bTimThay = true;
-        }
-        danhSachTaiKhoan.push_back(TaiKhoan(strUserDoc, strPassDoc));
-    }
-    fileDoc.close();
+	if (!this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
 
-    if (!bTimThay)
-    {
-        return false;
-    }
+	TaiKhoan* pTaiKhoan = danhSach.timDauTien([&](const TaiKhoan& taiKhoan)
+	{
+		return taiKhoan.getUsername() == strUsername;
+	});
 
-    std::ofstream fileGhi(EMPLOYEE_FILE_PATH, std::ios::trunc);
-    if (!fileGhi.is_open())
-    {
-        return false;
-    }
-    for (const TaiKhoan& taiKhoanHienTai : danhSachTaiKhoan)
-    {
-        fileGhi << taiKhoanHienTai.getUsername() << " "
-                << taiKhoanHienTai.getPassword() << "\n";
-    }
-    return true;
+	if (pTaiKhoan == nullptr)
+	{
+		return false;
+	}
+
+	pTaiKhoan->setPassword(strMatKhauMoi);
+	return this->ghiFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach);
 }
 
-bool XuLyFile::docNhanVien(const std::string& strUsername, NhanVien& nhanVien)
+/**********************************************************
+* @Description Doc ho so nhan vien tu file
+*
+* @return true neu doc thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::docHoSoNhanVien(const std::string& strUsername, HoSoNhanVien& hoSoNhanVien) const
 {
-    /*TODO: Not Implemented - doc 4 truong ho so tu data/[username].txt.
-    (void)strUsername;
-    (void)nhanVien;
-    return false;*/
-     // Doc 4 truong ho so tu data/[username].txt.
-    std::ifstream fileDoc(DATA_DIRECTORY + strUsername + ".txt");
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+	std::string strDuongDan;
 
-    std::string strHoTen = "";
-    std::string strDiaChi = "";
-    std::string strSoDienThoai = "";
-    std::string strEmail = "";
-    if (!std::getline(fileDoc, strHoTen) ||
-        !std::getline(fileDoc, strDiaChi) ||
-        !std::getline(fileDoc, strSoDienThoai) ||
-        !std::getline(fileDoc, strEmail))
-    {
-        return false;
-    }
+	if (!this->layDuongDanHoSo(strUsername, strDuongDan))
+	{
+		return false;
+	}
 
-    nhanVien.setHoTen(strHoTen);
-    nhanVien.setDiaChi(strDiaChi);
-    nhanVien.setSoDienThoai(strSoDienThoai);
-    nhanVien.setEmail(strEmail);
-    return true;
+	std::ifstream fileDoc(strDuongDan.c_str());
+
+	if (!fileDoc.is_open())
+	{
+		return false;
+	}
+
+	HoSoNhanVien hoSoNhanVienDoc;
+	const bool bDocDuoc = static_cast<bool>(fileDoc >> hoSoNhanVienDoc);
+
+	fileDoc.close();
+
+	if (!bDocDuoc)
+	{
+		return false;
+	}
+
+	hoSoNhanVien = hoSoNhanVienDoc;
+	return true;
 }
 
-bool XuLyFile::ghiNhanVien(const std::string& strUsername, const NhanVien& nhanVien)
+/**********************************************************
+* @Description Ghi ho so nhan vien ra file (ghi file tam roi thay the)
+*
+* @return true neu ghi thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::ghiHoSoNhanVien(const std::string& strUsername, const HoSoNhanVien& hoSoNhanVien) const
 {
-    /*TODO: Not Implemented - tao/ghi moi file ho so.
-    (void)strUsername;
-    (void)nhanVien;
-    return false;*/
-    // Tao/ghi moi file ho so (moi thong tin mot dong).
-    std::ofstream fileGhi(DATA_DIRECTORY + strUsername + ".txt", std::ios::trunc);
-    if (!fileGhi.is_open())
-    {
-        return false;
-    }
+	std::string strDuongDan;
 
-    fileGhi << nhanVien.getHoTen() << "\n"
-            << nhanVien.getDiaChi() << "\n"
-            << nhanVien.getSoDienThoai() << "\n"
-            << nhanVien.getEmail() << "\n";
-    return true;
+	if (!this->layDuongDanHoSo(strUsername, strDuongDan))
+	{
+		return false;
+	}
+
+	const std::string strFileTam = strDuongDan + TEMP_EXTENSION;
+	std::ofstream fileGhi(strFileTam.c_str(), std::ios::trunc);
+
+	if (!fileGhi.is_open())
+	{
+		return false;
+	}
+
+	fileGhi << hoSoNhanVien;
+
+	const bool bGhiDuoc = fileGhi.good();
+	fileGhi.close();
+
+	if (!bGhiDuoc || fileGhi.fail())
+	{
+		std::remove(strFileTam.c_str());
+		return false;
+	}
+
+	return this->thayTheFile(strFileTam, strDuongDan);
 }
 
-bool XuLyFile::capNhatNhanVien(const std::string& strUsername, const NhanVien& nhanVien)
+/**********************************************************
+* @Description Cap nhat ho so nhan vien da ton tai
+*
+* @return true neu cap nhat thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::capNhatHoSoNhanVien(const std::string& strUsername, const HoSoNhanVien& hoSoNhanVien) const
 {
-    /*TODO: Not Implemented - cap nhat file ho so hien co.
-    (void)strUsername;
-    (void)nhanVien;
-    return false;*/
-    // Cap nhat file ho so hien co (khong tao moi neu chua co file).
-    std::ifstream fileKiemTra(DATA_DIRECTORY + strUsername + ".txt");
-    if (!fileKiemTra.is_open())
-    {
-        return false;
-    }
-    fileKiemTra.close();
+	HoSoNhanVien hoSoNhanVienHienTai;
 
-    return ghiNhanVien(strUsername, nhanVien);
+	if (!this->docHoSoNhanVien(strUsername, hoSoNhanVienHienTai))
+	{
+		return false;
+	}
+
+	return this->ghiHoSoNhanVien(strUsername, hoSoNhanVien);
 }
 
-bool XuLyFile::docDanhSachNhanVien(std::vector<std::string>& danhSachUsername)
+/**********************************************************
+* @Description Lay duong dan file tai khoan theo vai tro
+*
+* @return Duong dan file, chuoi rong neu vai tro khong hop le
+**********************************************************/
+std::string XuLyFile::layDuongDanTaiKhoan(const VaiTro eVaiTro) const
 {
-    /*TODO: Not Implemented - doc danh sach username tu Employees.txt.
-    (void)danhSachUsername;
-    return false;*/
-     // Doc danh sach username tu Employees.txt.
-    std::ifstream fileDoc(EMPLOYEE_FILE_PATH);
-    if (!fileDoc.is_open())
-    {
-        return false;
-    }
+	switch (eVaiTro)
+	{
+	case VaiTro::ADMIN:
+		return ADMIN_FILE_PATH;
 
-    danhSachUsername.clear();
-    std::string strUserDoc = "";
-    std::string strPassDoc = "";
-    while (fileDoc >> strUserDoc >> strPassDoc)
-    {
-        danhSachUsername.push_back(strUserDoc);
-    }
-    return true;
+	case VaiTro::EMPLOYEE:
+		return EMPLOYEE_FILE_PATH;
+
+	default:
+		return "";
+	}
+}
+
+/**********************************************************
+* @Description Tao duong dan file ho so tu username
+*
+* @return true neu username hop le, false neu nguoc lai
+* @attention Chan username khong hop le de tranh duong dan nguy hiem
+**********************************************************/
+bool XuLyFile::layDuongDanHoSo(const std::string& strUsername, std::string& strDuongDan) const
+{
+	if (!KiemTraDuLieu::laUsernameHopLe(strUsername) ||
+		KiemTraDuLieu::laUsernameDanhRieng(strUsername))
+	{
+		return false;
+	}
+
+	strDuongDan = std::string(DATA_DIRECTORY) + strUsername + PROFILE_EXTENSION;
+	return true;
+}
+
+/**********************************************************
+* @Description Doc toan bo tai khoan tu file vao danh sach lien ket
+*
+* @return true neu mo duoc file, false neu nguoc lai
+* @attention Tra ve false va xoa danh sach neu gap dong khong hop le, tranh ghi de lam mat tai khoan
+* @attention Dinh dang file: moi tai khoan gom 2 dong (dong 1 la username, dong 2 la password)
+**********************************************************/
+bool XuLyFile::docFileTaiKhoan(const std::string& strDuongDan,
+							   DanhSachLienKet<TaiKhoan>& danhSach) const
+{
+	danhSach.xoaTatCa();
+	std::ifstream fileDoc(strDuongDan.c_str());
+
+	if (!fileDoc.is_open())
+	{
+		return false;
+	}
+
+	std::string strUsername;
+
+	while (std::getline(fileDoc, strUsername))
+	{
+		// Bo qua dong trong giua cac tai khoan.
+		if (strUsername.find_first_not_of(BLANK_CHARACTERS) == std::string::npos)
+		{
+			continue;
+		}
+
+		// Moi tai khoan gom 2 dong: username roi toi password.
+		std::string strPassword;
+		const bool bCoPassword = static_cast<bool>(std::getline(fileDoc, strPassword));
+		std::istringstream luongTaiKhoan(strUsername + '\n' + strPassword + '\n');
+		TaiKhoan taiKhoan;
+
+		if (!bCoPassword || !(luongTaiKhoan >> taiKhoan))
+		{
+			fileDoc.close();
+			danhSach.xoaTatCa();
+			return false;
+		}
+
+		danhSach.themCuoi(taiKhoan);
+	}
+
+	fileDoc.close();
+	return true;
+}
+
+/**********************************************************
+* @Description Ghi danh sach tai khoan ra file (ghi file tam roi thay the)
+*
+* @return true neu ghi thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::ghiFileTaiKhoan(const std::string& strDuongDan, const DanhSachLienKet<TaiKhoan>& danhSach) const
+{
+	const std::string strFileTam = strDuongDan + TEMP_EXTENSION;
+	std::ofstream fileGhi(strFileTam.c_str(), std::ios::trunc);
+
+	if (!fileGhi.is_open())
+	{
+		return false;
+	}
+
+	danhSach.duyet([&fileGhi](const TaiKhoan& taiKhoan)
+	{
+		fileGhi << taiKhoan;
+	});
+
+	const bool bGhiDuoc = fileGhi.good();
+	fileGhi.close();
+
+	if (!bGhiDuoc || fileGhi.fail())
+	{
+		std::remove(strFileTam.c_str());
+		return false;
+	}
+
+	return this->thayTheFile(strFileTam, strDuongDan);
+}
+
+/**********************************************************
+* @Description Thay file dich bang file tam
+*
+* @return true neu doi ten thanh cong, false neu nguoc lai
+**********************************************************/
+bool XuLyFile::thayTheFile(const std::string& strFileTam, const std::string& strFileDich) const
+{
+	std::remove(strFileDich.c_str());
+	return std::rename(strFileTam.c_str(), strFileDich.c_str()) == 0;
+}
+
+/**********************************************************
+* @Description Kiem tra gia tri (so dien thoai hoac email) co trung voi Employee khac
+*
+* @return true neu trung (khong phan biet hoa thuong), false neu nguoc lai
+* @attention Bo qua Employee co username la strUsernameBoQua
+**********************************************************/
+bool XuLyFile::kiemTraTrungThongTin(const std::string& strGiaTri, const std::string& strUsernameBoQua, const TruongThongTin eTruong) const
+{
+	DanhSachLienKet<TaiKhoan> danhSach;
+
+	if (!this->docFileTaiKhoan(EMPLOYEE_FILE_PATH, danhSach))
+	{
+		return false;
+	}
+
+	const std::string strGiaTriChuan = ChuoiUtf8::chuyenThanhChuThuong(strGiaTri);
+	bool bTrung = false;
+
+	danhSach.duyet([&](const TaiKhoan& taiKhoan)
+	{
+		HoSoNhanVien hoSoNhanVien;
+
+		if (bTrung || taiKhoan.getUsername() == strUsernameBoQua ||
+			!this->docHoSoNhanVien(taiKhoan.getUsername(), hoSoNhanVien))
+		{
+			return;
+		}
+
+		const std::string strHienTai = this->layGiaTriTruong(hoSoNhanVien, eTruong);
+
+		if (ChuoiUtf8::chuyenThanhChuThuong(strHienTai) == strGiaTriChuan)
+		{
+			bTrung = true;
+		}
+	});
+
+	return bTrung;
+}
+
+/**********************************************************
+* @Description Lay gia tri truong thong tin can so sanh trung
+*
+* @return Gia tri truong, chuoi rong neu truong khong hop le
+**********************************************************/
+std::string XuLyFile::layGiaTriTruong(const HoSoNhanVien& hoSoNhanVien, const TruongThongTin eTruong) const
+{
+	switch (eTruong)
+	{
+	case TruongThongTin::SO_DIEN_THOAI:
+		return hoSoNhanVien.getSoDienThoai();
+
+	case TruongThongTin::EMAIL:
+		return hoSoNhanVien.getEmail();
+
+	default:
+		return "";
+	}
 }

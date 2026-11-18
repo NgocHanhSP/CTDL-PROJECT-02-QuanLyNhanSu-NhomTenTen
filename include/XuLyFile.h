@@ -1,43 +1,49 @@
-#pragma once
+#ifndef XULYFILE_H_INCLUDED_
+#define XULYFILE_H_INCLUDED_
 
 #include <string>
-#include <vector>
-
 #include "Constants.h"
-#include "TaiKhoan.h"
-#include "NhanVien.h"
 
-// XuLyFile.h
-// Muc dich: Khai bao cac thao tac doc/ghi file; cac module khac khong tu y sua file txt.
-// Quy uoc de xuat: moi tai khoan chi co username va password tren cac dong theo format da thong nhat.
+class TaiKhoan;
+class HoSoNhanVien;
+
+template <typename T>
+class DanhSachLienKet;
 
 class XuLyFile
 {
 public:
-    // Xac thuc username/password theo vai tro.
-    bool kiemTraDangNhap(const std::string& strUsername,
-                         const std::string& strPassword,
-                         VaiTro eVaiTro);
+	bool taoThuMucDuLieu() const;
 
-    // Chi kiem tra username trong danh sach Employee.
-    bool kiemTraUsernameTonTai(const std::string& strUsername);
+	bool kiemTraDangNhap(const std::string& strUsername, const std::string& strPassword, const VaiTro eVaiTro) const;
+	bool kiemTraUsernameTonTai(const std::string& strUsername) const;
+	bool kiemTraUsernameTrung(const std::string& strUsername) const;
+	bool kiemTraTrungSoDienThoai(const std::string& strSoDienThoai, const std::string& strUsernameBoQua) const;
+	bool kiemTraTrungEmail(const std::string& strEmail, const std::string& strUsernameBoQua) const;
 
-    // Doc thong tin tai khoan tu file danh sach tuong ung.
-    bool docTaiKhoan(const std::string& strUsername, TaiKhoan& taiKhoan);
+	bool docTaiKhoan(const std::string& strUsername, TaiKhoan& taiKhoan) const;
+	bool docDanhSachTaiKhoan(DanhSachLienKet<TaiKhoan>& danhSach) const;
+	bool themTaiKhoan(const TaiKhoan& taiKhoan) const;
+	bool xoaTaiKhoan(const std::string& strUsername) const;
+	bool capNhatMatKhau(const std::string& strUsername, const std::string& strMatKhauMoi) const;
 
-    // Them/xoa tai khoan Employee.
-    bool themTaiKhoan(const TaiKhoan& taiKhoan);
-    bool xoaTaiKhoan(const std::string& strUsername);
+	bool docHoSoNhanVien(const std::string& strUsername, HoSoNhanVien& hoSoNhanVien) const;
+	bool ghiHoSoNhanVien(const std::string& strUsername, const HoSoNhanVien& hoSoNhanVien) const;
+	bool capNhatHoSoNhanVien(const std::string& strUsername, const HoSoNhanVien& hoSoNhanVien) const;
 
-    // Cap nhat password. Khong can co tham so trang thai doi mat khau.
-    bool capNhatMatKhau(const std::string& strUsername,
-                        const std::string& strMatKhauMoi);
+private:
+	enum class TruongThongTin
+	{
+		SO_DIEN_THOAI,
+		EMAIL
+	};
 
-    // Doc/ghi/cap nhat ho so theo username.
-    bool docNhanVien(const std::string& strUsername, NhanVien& nhanVien);
-    bool ghiNhanVien(const std::string& strUsername, const NhanVien& nhanVien);
-    bool capNhatNhanVien(const std::string& strUsername, const NhanVien& nhanVien);
-
-    // Lay danh sach username nhan vien.
-    bool docDanhSachNhanVien(std::vector<std::string>& danhSachUsername);
+	std::string layDuongDanTaiKhoan(const VaiTro eVaiTro) const;
+	bool layDuongDanHoSo(const std::string& strUsername, std::string& strDuongDan) const;
+	bool docFileTaiKhoan(const std::string& strDuongDan, DanhSachLienKet<TaiKhoan>& danhSach) const;
+	bool ghiFileTaiKhoan(const std::string& strDuongDan, const DanhSachLienKet<TaiKhoan>& danhSach) const;
+	bool thayTheFile(const std::string& strFileTam, const std::string& strFileDich) const;
+	bool kiemTraTrungThongTin(const std::string& strGiaTri, const std::string& strUsernameBoQua, const TruongThongTin eTruong) const;
+	std::string layGiaTriTruong(const HoSoNhanVien& hoSoNhanVien, const TruongThongTin eTruong) const;
 };
+#endif

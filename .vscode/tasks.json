@@ -1,4 +1,3 @@
-
 {
     "version": "2.0.0",
     "tasks": [
@@ -8,9 +7,12 @@
             "command": "C:\\Program Files\\CodeBlocks\\MinGW\\bin\\g++.exe",
             "args": [
                 "-g",
+                "-std=c++11",
+                "-Wall",
+                "-Wextra",
                 "${workspaceFolder}/src/*.cpp",
                 "-o",
-                "${workspaceFolder}/src/main.exe"
+                "${workspaceFolder}/main.exe"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"

@@ -1,31 +1,28 @@
-#pragma once
+#ifndef TAIKHOAN_H_INCLUDED_
+#define TAIKHOAN_H_INCLUDED_
 
+#include <iosfwd>
 #include <string>
-
-// TaiKhoan.h
-// Muc dich: Khai bao lop luu username va password.
-// Quy uoc lan dang nhap dau: password == DEFAULT_PASSWORD.
-// Khong can luu them co MustChangePassword vi co the suy ra tu password.
 
 class TaiKhoan
 {
-private:
-    std::string _strUsername;
-    std::string _strPassword;
-
 public:
-    // Khoi tao tai khoan rong.
-    TaiKhoan();
+	TaiKhoan();
+	TaiKhoan(const std::string& strUsername, const std::string& strPassword);
+	TaiKhoan(const TaiKhoan& taiKhoanNguon);
+	~TaiKhoan();
+	TaiKhoan& operator=(const TaiKhoan& taiKhoanNguon) = default;
 
-    // Khoi tao tai khoan tu username va password.
-    TaiKhoan(const std::string& strUsername,
-             const std::string& strPassword);
+	std::string getUsername() const;
+	std::string getPassword() const;
+	void setUsername(const std::string& strUsername);
+	void setPassword(const std::string& strPassword);
 
-    // Lay thong tin tai khoan.
-    std::string getUsername() const;
-    std::string getPassword() const;
+	friend std::istream& operator>>(std::istream& luongVao, TaiKhoan& taiKhoan);
+	friend std::ostream& operator<<(std::ostream& luongRa, const TaiKhoan& taiKhoan);
 
-    // Cap nhat thong tin tai khoan.
-    void setUsername(const std::string& strUsername);
-    void setPassword(const std::string& strPassword);
+private:
+	std::string _strUsername;
+	std::string _strPassword;
 };
+#endif
